@@ -1,6 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <sys/shm.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 #define NOME_ARQUIVO "teste.csv"
 #ifdef DEGUB
@@ -121,10 +127,20 @@ char *get_gene(FILE *file, long row) {
 
 int main(void) {
     FILE *file = fopen(NOME_ARQUIVO, "r");
+    int *memoria;
+    int pid, chave = 5, shmid;
 
     ARGS args;
 
     args.dna = malloc((int) sizeof(char) * 113500);
+
+    if ( ( shmid = shmget (chave, 2*sizeof(int) ,IPC_CREAT | 0600)) < 0 ){
+        printf("Erro na criacao da memoria compartilhada");
+    }
+
+    if ( ( memoria = shmat(shmid, 0, 0 )) < 0 ){
+        printf("Erro na alocacao");
+    }
 
 
 	le_linha(file, &args);
@@ -148,6 +164,28 @@ int main(void) {
 
 
     fclose(file);
+
+    pid = fork();
+
+    if (pid > 0) {
+        pid = fork();
+        if (pid > 0) {
+            pid = fork();
+            if (pid > 0) {
+                wait(NULL);
+                wait(NULL);
+                wait(NULL);
+                shmdt(memoria);
+                shmctl(shmid, IPC_RMID, 0);
+            } else {
+                memoria[2] = 3
+            }
+        } else {
+            memoria[1] = 2
+        }
+    } else {
+        memoria[0] = 1
+    }
 
     return 0;
 }
