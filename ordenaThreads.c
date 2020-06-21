@@ -8,12 +8,19 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-#define NOME_ARQUIVO "teste.csv"
-#ifdef DEGUB
+#ifdef DEBUG
+    #define INPUT "teste.csv"
+#else
+	#define INPUT "intergenidb.csv"
+#endif
+#define OUTPUT "saida.csv"
+#ifdef DEBUG
 	#define NUM_LINHAS 10
 #else
 	#define NUM_LINHAS 75252
 #endif
+#define INCREMENTO 4
+#define PERMISSAO 0600
 
 typedef struct argumentos {
     char nomeOrganismo[100];
@@ -26,21 +33,15 @@ typedef struct argumentos {
     char *dna;
 } ARGS;
 
-// set the pointer of file to a specific line
-void setPosFile(FILE *file, int pos) {
-	// always points to beginning
-	file = fseek(file, 0, SEEK_SET);
-
-	while (pos--) 
-		fscanf(file, "%*[^\n]\n");
-}
+typedef struct index {
+    int fileIndex;
+	char nomeGene[100];
+	char nomeOrganismo[100];
+} INDEX;
 
 // set the current line into struct
 int le_linha(FILE *file, ARGS *args){
     int isEOF;
-    //ARGS args;
-
-    //args->dna = malloc((int) sizeof(char) * 113500);
 
     isEOF = fscanf(file, "%[^;];%[^;];%[^;];%[^;];%[^;];%[^;];%[^;];%[^\n]\n", 
                 args->nomeOrganismo, args->nomeGene, args->tipoOrganismo, args->familiaOrganismos, 
@@ -50,7 +51,6 @@ int le_linha(FILE *file, ARGS *args){
         printf("%s %s %s %s %s %s %s --> TAM: %d <--\n", 
             args->nomeOrganismo, args->nomeGene, args->tipoOrganismo, args->familiaOrganismos, 
             args->papelBiologico, args->posInicialGenoma, args->posFinalGenoma, (int) strlen(args->dna));
-
     #endif
     
     return isEOF;
@@ -58,113 +58,93 @@ int le_linha(FILE *file, ARGS *args){
 
 // write the struct in .csv formated into file
 int escreve_linha(FILE *file, ARGS *args){
-	return fprintf("%s;%s;%s;%s;%s;%s;%s;%s;", 
+	return fprintf(file, "%s;%s;%s;%s;%s;%s;%s;%s\n", 
 				args->nomeOrganismo, args->nomeGene, args->tipoOrganismo, args->familiaOrganismos, 
 				args->papelBiologico, args->posInicialGenoma, args->posFinalGenoma, args->dna);
 }
 
-void qs_disk(FILE *file, int left, int right) {
-    long int i, j;
-    char x[100];
-    
-    i = left; j = right;
-    
-    strcpy(x, get_gene(file, (long)(i+j)/2)); /* obtém o GENE intermediário */
-    
-    do {
-        while (strcmp(get_gene(file, i), x) < 0 && i < right) i++;
-		
-        while (strcmp(get_gene(file, j), x) > 0 && j > left) j--;
-        
-        if (i <= j) {
-            swap_all_fields(file, i, j);
-            i++; j--;
-        }
-    } while(i <= j);
-    
-    if (left < j) qs_disk(file, left, (int) j);
-    if (i < right) qs_disk(file, (int) i, right);
-}
-
-void swap_all_fields(FILE *file, long i, long j) {
-    ARGS a, b;
-    
-    /* primeiro lê os registros i e j */
-	setPosFile(file, i);
-	le_linha(file, &a);
-
-    //fseek(file, sizeof(ainfo) * i, SEEK_SET);
-    //fread(a, sizeof(ainfo), 1, file);
-    
-	setPosFile(file, j);
-	le_linha(file, &b);
-
-    //fseek(file, sizeof(ainfo) * j, SEEK_SET);
-    //fread(b, sizeof(ainfo), 1, file);
-    
-    /* em seguida escreve de volta em posições diferentes */
-	setPosFile(file, i);
-	escreve_linha(file, &a);
-
-	setPosFile(file, j);
-	escreve_linha(file, &b);
-
-    //fseek(file, sizeof(ainfo) * j, SEEK_SET);
-    //fwrite(a, sizeof(ainfo), 1, file);
-    
-    //fseek(file, sizeof(ainfo) * i, SEEK_SET);
-    //fwrite(b, sizeof(ainfo), 1, file);
-}
-
-char *get_gene(FILE *file, long row) {
-    ARGS args;
-    
-    setPosFile(file, row);
-	le_linha(file, &args);
-    
-    return args.nomeGene;
-}
-
-int main(void) {
-    FILE *file = fopen(NOME_ARQUIVO, "r");
-    int *memoria;
-    int pid, chave = 5, shmid;
-
-    ARGS args;
+void escreve_linhas(FILE *in, FILE *out, INDEX index[NUM_LINHAS]){
+    int i;
+    ARGS args;    
 
     args.dna = malloc((int) sizeof(char) * 113500);
 
-    if ( ( shmid = shmget (chave, 2*sizeof(int) ,IPC_CREAT | 0600)) < 0 ){
+    for(i=0; i < NUM_LINHAS; i++){
+
+        fseek(in, index[i].fileIndex, SEEK_SET);
+
+        le_linha(in, &args);
+
+        escreve_linha(out, &args);
+    }
+}
+
+void ordena_vetor(int ini, int inc, INDEX vet[NUM_LINHAS], INDEX ordenado[NUM_LINHAS]){
+	int i, j, cont;
+
+	for (i = ini; i < NUM_LINHAS; i += inc){
+		cont = 0;
+		for (j=0; j < NUM_LINHAS; j++){            
+            if((strcmp(vet[j].nomeGene, vet[i].nomeGene) < 0) || strcmp(vet[j].nomeGene, vet[i].nomeGene) == 0 && i< j) {
+				cont++;			
+			}
+            #ifdef DEBUG
+                printf("i[%d]: %s - j[%d]: %s -> count %d\n", i, vet[i].nomeGene, j, vet[j].nomeGene, cont);
+            #endif
+		}
+		ordenado[cont] = vet[i];
+	}
+}
+
+void index_arq(FILE *in, INDEX index[NUM_LINHAS]){
+    int i;
+    ARGS args;
+
+    args.dna = malloc((long) sizeof(char) * 113500);
+
+    for(i=0; i < NUM_LINHAS; i++){
+
+        index[i].fileIndex = ftell(in);
+
+        le_linha(in, &args);
+
+        strcpy(index[i].nomeGene, args.nomeGene);
+        strcpy(index[i].nomeOrganismo, args.nomeOrganismo);
+
+        #ifdef DEBUG
+            printf("%d %s %s\n", index[i].fileIndex, index[i].nomeGene, index[i].nomeOrganismo);
+        #endif
+    }
+}
+
+
+int main(void) {
+    FILE *in = fopen(INPUT, "r");
+    FILE *out = fopen(OUTPUT, "w");
+
+    INDEX *index, *ordenado;
+
+    index = malloc((long) sizeof(INDEX) * NUM_LINHAS);
+
+    int pid, shmid;
+
+
+    if ((shmid = shmget(IPC_PRIVATE, NUM_LINHAS*sizeof(INDEX), IPC_CREAT | PERMISSAO)) < 0){
         printf("Erro na criacao da memoria compartilhada");
+        exit(0);
     }
 
-    if ( ( memoria = shmat(shmid, 0, 0 )) < 0 ){
-        printf("Erro na alocacao");
+    if ((ordenado = shmat(shmid, 0, 0)) < 0){
+        printf("Erro na alocacao da memoria compartilhada");
+        exit(0);
     }
 
+    printf("CRIANDO INDICE\n");
+    // cria indices do arquivo
+    index_arq(in, index);
+    printf("FIM CRIANDO INDICE\n");
 
-	le_linha(file, &args);
-
-	setPosFile(file, 4);
-
-	// fseek(file, sizeof(ARGS), SEEK_SET);
-
-	le_linha(file, &args);
-
-
-	/*
-    while(le_linha(file, &args) != EOF){
-
-        printf("%s %s %s %s %s %s %s --> TAM: %d <--\n", 
-            args.nomeOrganismo, args.nomeGene, args.tipoOrganismo, args.familiaOrganismos, 
-            args.papelBiologico, args.posInicialGenoma, args.posFinalGenoma, (int) strlen(args.dna));
-        
-    }
-	*/
-
-
-    fclose(file);
-
+    // INICIO PARALELO
     pid = fork();
 
     if (pid > 0) {
@@ -172,19 +152,45 @@ int main(void) {
         if (pid > 0) {
             pid = fork();
             if (pid > 0) {
+                printf("ORDENANDO 0\n");
+                ordena_vetor(0, INCREMENTO, index, ordenado);
+                printf("FIM ORDENANDO 0\n");
+
+                // espera terminar todos os processos
                 wait(NULL);
                 wait(NULL);
                 wait(NULL);
-                shmdt(memoria);
-                shmctl(shmid, IPC_RMID, 0);
+
+                // ESCREVE VETOR ORDENADO
+                printf("ESCREVENDO ARQ\n");
+                escreve_linhas(in, out, ordenado);
+                printf("FIM ESCREVENDO ARQ\\n");
+
+                shmdt(ordenado); // apaga apontamento para memoria compartilhada
+                shmctl(shmid, IPC_RMID, 0); // apaga espaco de memoria compartilhada
+                
+                fclose(in);
+                fclose(out);
             } else {
-                memoria[2] = 3
+                printf("ORDENANDO 1\n");
+                ordena_vetor(1, INCREMENTO, index, ordenado);
+                printf("FIM ORDENANDO 1\n");
+
+                shmdt(ordenado); // apaga apontamento para memoria compartilhada
             }
         } else {
-            memoria[1] = 2
+            printf("ORDENANDO 2\n");
+            ordena_vetor(2, INCREMENTO, index, ordenado);
+            printf("FIM ORDENANDO 2\n");
+
+            shmdt(ordenado); // apaga apontamento para memoria compartilhada
         }
     } else {
-        memoria[0] = 1
+        printf("ORDENANDO 3\n");
+        ordena_vetor(3, INCREMENTO, index, ordenado);
+        printf("FIM ORDENANDO 3\n");
+
+        shmdt(ordenado); // apaga apontamento para memoria compartilhada
     }
 
     return 0;

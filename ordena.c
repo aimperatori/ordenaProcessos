@@ -2,7 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define INPUT "teste.csv"
+#ifdef DEBUG
+    #define INPUT "teste.csv"
+#else
+	#define INPUT "intergenidb.csv"
+#endif
 #define OUTPUT "saida.csv"
 #define INCREMENTO 4
 #ifdef DEBUG
@@ -89,7 +93,7 @@ void index_arq(FILE *in, INDEX index[NUM_LINHAS]){
     int i;
     ARGS args;
 
-    args.dna = malloc((int) sizeof(char) * 113500);
+    args.dna = malloc((long) sizeof(char) * 113500);
 
     for(i=0; i < NUM_LINHAS; i++){
 
@@ -109,7 +113,11 @@ void index_arq(FILE *in, INDEX index[NUM_LINHAS]){
 int main(void) {
     FILE *in = fopen(INPUT, "r");
     FILE *out = fopen(OUTPUT, "w");
-    INDEX index[NUM_LINHAS], ordenado[NUM_LINHAS];
+    
+    INDEX *index, *ordenado;
+
+    index = malloc((long) sizeof(INDEX) * NUM_LINHAS);
+    ordenado = malloc((long) sizeof(INDEX) * NUM_LINHAS);
 
     // cria indices do arquivo
     index_arq(in, index);
