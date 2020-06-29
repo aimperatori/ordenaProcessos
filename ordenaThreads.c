@@ -1,10 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <sys/shm.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
 #include <unistd.h>
 #include <sys/wait.h>
 
@@ -34,7 +31,7 @@ typedef struct argumentos {
 } ARGS;
 
 typedef struct index {
-    int fileIndex;
+    int  fileIndex;
 	char nomeGene[100];
 	char nomeOrganismo[100];
 } INDEX;
@@ -67,7 +64,7 @@ void escreve_linhas(FILE *in, FILE *out, INDEX index[NUM_LINHAS]){
     int i;
     ARGS args;    
 
-    args.dna = malloc((int) sizeof(char) * 113500);
+    args.dna = malloc((long) sizeof(char) * 113500);
 
     for(i=0; i < NUM_LINHAS; i++){
 
@@ -84,9 +81,11 @@ void ordena_vetor(int ini, int inc, INDEX vet[NUM_LINHAS], INDEX ordenado[NUM_LI
 
 	for (i = ini; i < NUM_LINHAS; i += inc){
 		cont = 0;
-		for (j=0; j < NUM_LINHAS; j++){            
-            if((strcmp(vet[j].nomeGene, vet[i].nomeGene) < 0) || strcmp(vet[j].nomeGene, vet[i].nomeGene) == 0 && i< j) {
-				cont++;			
+		for (j=0; j < NUM_LINHAS; j++){
+            if((strcmp(vet[j].nomeGene, vet[i].nomeGene) < 0) || 
+                (strcmp(vet[j].nomeGene, vet[i].nomeGene) == 0 && strcmp(vet[j].nomeOrganismo, vet[i].nomeOrganismo) < 0) ||
+                (strcmp(vet[j].nomeGene, vet[i].nomeGene) == 0 && strcmp(vet[j].nomeOrganismo, vet[i].nomeOrganismo) == 0 && i < j)) {
+				cont++;
 			}
             #ifdef DEBUG
                 printf("i[%d]: %s - j[%d]: %s -> count %d\n", i, vet[i].nomeGene, j, vet[j].nomeGene, cont);
@@ -96,7 +95,7 @@ void ordena_vetor(int ini, int inc, INDEX vet[NUM_LINHAS], INDEX ordenado[NUM_LI
 	}
 }
 
-void index_arq(FILE *in, INDEX index[NUM_LINHAS]){
+void create_index_arq(FILE *in, INDEX index[NUM_LINHAS]){
     int i;
     ARGS args;
 
@@ -141,7 +140,7 @@ int main(void) {
 
     printf("CRIANDO INDICE\n");
     // cria indices do arquivo
-    index_arq(in, index);
+    create_index_arq(in, index);
     printf("FIM CRIANDO INDICE\n");
 
     // INICIO PARALELO
@@ -164,7 +163,7 @@ int main(void) {
                 // ESCREVE VETOR ORDENADO
                 printf("ESCREVENDO ARQ\n");
                 escreve_linhas(in, out, ordenado);
-                printf("FIM ESCREVENDO ARQ\\n");
+                printf("FIM ESCREVENDO ARQ\n");
 
                 shmdt(ordenado); // apaga apontamento para memoria compartilhada
                 shmctl(shmid, IPC_RMID, 0); // apaga espaco de memoria compartilhada
