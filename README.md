@@ -1,3 +1,8 @@
+## Autores ##
+
+* Anderson Imperatori
+* Leonardo Bertele Tosin
+
 ## Definição ##
 
 Universidade de Caxias do Sul
