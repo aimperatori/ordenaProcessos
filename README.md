@@ -1,3 +1,5 @@
+## Definição ##
+
 Universidade de Caxias do Sul
 Área do Conhecimento de Ciências Exatas e Engenharias
 FBX4052 - Fundamentos de Sistemas Operacionais
@@ -27,3 +29,13 @@ Entregar:
 código fonte
 instruções para a execução do código fonte
 vídeo contendo o detalhamento da implementação, exemplificação da execução, mostrar o arquivo original e o arquivo gerado.
+
+## Nota ##
+
+O nome do programa(o não sequencial) e o nome do projeto é ordenaThreads, mas foi usado processos, e não threads
+
+## Instruções para executar ##
+
+```bash
+gcc -o ordenaThreads ordenaThreads.c
+```
