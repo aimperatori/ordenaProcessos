@@ -41,10 +41,6 @@ Grupos: O trabalho deve ser realizado em grupos de até três alunos.
 * Instruções para a execução do código fonte
 * Vídeo contendo o detalhamento da implementação, exemplificação da execução, mostrar o arquivo original e o arquivo gerado.
 
-## Nota ##
-
-O nome do programa(o não sequencial) e o nome do projeto é ordenaThreads, mas foi usado processos, e não threads
-
 ## Instruções para executar ##
 
 ```bash
